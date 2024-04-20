@@ -43,31 +43,18 @@ metadata:
   namespace: inf
 data:
   prometheus.yml: |
-    # my global config
     global:
-      scrape_interval: 15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
-      evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
-      # scrape_timeout is set to the global default (10s).
-      
-      # Alertmanager configuration
-      # alerting:
-      #   alertmanagers:
-      #     - static_configs:
-      #         - targets:
-      #           # - alertmanager:9093
-      
-      # Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
-      # rule_files:
-      # - "first_rules.yml"
-      # - "second_rules.yml"
-    
-    # A scrape configuration containing exactly one endpoint to scrape:
-    # Here it's Prometheus itself.
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - alertmanager:9093
+    rule_files:
+      - "/etc/prometheus/*-rules.yml"
     scrape_configs:
-      # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
       - job_name: prometheus
-        # metrics_path defaults to '/metrics'
-        # scheme defaults to 'http'.
         static_configs:
           - targets: ["localhost:9090"]
       
@@ -78,7 +65,6 @@ data:
           - source_labels: [__meta_kubernetes_pod_label_app]
             regex: node-exporter
             action: keep
-          # 非 Running 状态的 Pod 机器资源已释放，不需要采集
           - source_labels: [__meta_kubernetes_pod_phase]
             regex: Running
             action: keep
@@ -94,7 +80,7 @@ data:
             target_label: namespace # 将 Pod 所在 namespace 写到 "namespace" label
             replacement: ${1}
             action: replace
-        
+      
       - job_name: app
         kubernetes_sd_configs:
           - role: pod
@@ -115,6 +101,84 @@ data:
             replacement: $1
           - action: labelmap
             regex: __meta_kubernetes_pod_label_(.+)
+
+  general-rules.yml: |
+    groups:
+      - name: cpu-usage-rules
+        rules:
+          - alert: High CPU Usage
+            expr: (sum by(instance) (irate(node_cpu_seconds_total{job="node-exporter", mode!="idle"}[1m])) / on(instance) group_left sum by (instance)((irate(node_cpu_seconds_total{job="node-exporter"}[1m])))) * 100 > 90
+            for: 10m
+            labels:
+              severity: Critical
+            annotations:
+              summary: "High CPU Usage"
+              description: "CPU在过去10min的使用率为{{printf \"%.2f\" $value}}%，高于阈值请及时处理。"
+      - name: system-load-rules
+        rules:
+          - alert: High System Load
+            expr: avg(node_load15{job="node-exporter"}) /  count(count(node_cpu_seconds_total{job="node-exporter"}) by (cpu)) * 100 > 150
+            labels:
+              severity: Warning
+            annotations:
+              summary: "High System Load"
+              description: "在过去15min内的系统负载为{{printf \"%.2f\" $value}}%，高于阈值请及时处理。"
+      - name: filesystem-rules
+        rules:
+          - alert: Low Disk Space
+            expr: 100 - (node_filesystem_avail_bytes{job="node-exporter",device!~'shm|tmpfs'} / node_filesystem_size_bytes{job="node-exporter",device!~'shm|tmpfs'}) * 100< 10
+            labels:
+              severity: Critical
+            annotations:
+              summary: "Low Disk Space"
+              description:  "当前Device：{{$labels.device}}的剩余磁盘空间为{{printf \"%.2f\" $value}}%，低于阈值请及时处理。"
+      - name: memory-rules
+        rules:
+          - alert: Low Memory Space
+            expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 10
+            for: 5m
+            labels:
+              severity: Critical
+            annotations:
+              summary: "Low Memory Space"
+              description: "当前可以内存空间为{{printf \"%.2f\" $value}}%，低于阈值请及时处理。"
+      - name: network-drop-rate-rules
+        rules:
+          - alert: High Network Drop Rate
+            expr: rate(node_network_receive_drop_total[30m])/ rate(node_network_receive_packets_total[30m]) * 100 > 10
+            labels:
+              severity: Warning
+            annotations:
+              summary: "High Network Drop Rate"
+              description: "当前的网络丢包率为{{printf \"%.2f\" $value}}%，高于阈值请及时处理。"
+      - name: kafka-consumer-lag-rules
+        rules:
+          - alert: High Consumer Lag
+            expr: kafka_consumer_fetch_manager_records_lag_max > 100
+            labels:
+              severity: Warning
+            annotations:
+              summary: "High Consumer Lag"
+              description: "Topic：{{$labels.topic}}的消费者滞后量为{{$value}}条，高于阈值请及时处理。"
+      - name: jvm-gc-pause-rules
+        rules:
+          - alert: High JVM Garbage Collection Pause
+            expr: jvm_gc_pause_seconds_max > 1.0
+            labels:
+              severity: Critical
+            annotations:
+              summary: "High JVM Garbage Collection Pause"
+              description: "Cause：{{$labels.cause}}的垃圾回收暂停时间超过1秒，请及时处理。"
+      - name: disk-io-alerts
+        rules:
+          - alert: High Disk I/O Usage
+            expr: 100 * rate(node_disk_io_now[1m]) / (rate(node_disk_io_time_seconds_total[1m]) + 1e-10) > 80
+            for: 5m
+            labels:
+              severity: Critical
+            annotations:
+              summary: "High Disk I/O Usage"
+              description: "当前的磁盘：{{$labels.device}}的I/O使用率为{{printf \"%.2f\" $value}}%，高于阈值请及时处理。"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -136,7 +200,7 @@ spec:
     spec:
       initContainers:
         - name: init
-          image: busybox
+          image: busybox:1.36.1
           imagePullPolicy: IfNotPresent
           command: [ 'sh', '-c', 'chown 65534:65534 /data' ]
           volumeMounts:
