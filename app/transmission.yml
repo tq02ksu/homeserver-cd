@@ -1,4 +1,72 @@
-apiVersion: v1
-kind: Namespace
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: app
+  name: transmission
+  namespace: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: transmission
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: transmission
+    spec:
+      containers:
+        - name: transmission
+          image: linuxserver/transmission
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            - name: PUID
+              value: '1000'
+            - name: GUID
+              value: '1000'
+          volumeMounts:
+            - mountPath: /config
+              name: transmission-config
+            - mountPath: /downloads
+              name: transmission-downloads
+      volumes:
+        - name: transmission-config
+          hostPath:
+            path: /home/transmission-config
+        - name: transmission-downloads
+          hostPath:
+            path: /home/transmission/downloads
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: transmission
+  namespace: app
+spec:
+  selector:
+    app: transmission
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: transmission
+  namespace: app
+spec:
+  rules:
+    - host: transmission.homeserver.local
+      http:
+        paths:
+          - path: /
+            backend:
+              service:
+                name: transmission
+                port:
+                  number: 8080
+            pathType: Prefix
