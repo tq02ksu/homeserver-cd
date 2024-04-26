@@ -104,8 +104,8 @@ spec:
                 "utp-enabled": false,
                 "watch-dir": "/watch",
                 "watch-dir-enabled": true
-            }
-            !
+              }
+              !
           volumeMounts:
             - mountPath: /config
               name: transmission-config
