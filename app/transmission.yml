@@ -33,7 +33,7 @@ spec:
       volumes:
         - name: transmission-config
           hostPath:
-            path: /home/transmission-config
+            path: /home/transmission/config
         - name: transmission-downloads
           hostPath:
             path: /home/transmission/downloads
