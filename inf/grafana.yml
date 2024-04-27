@@ -15,13 +15,6 @@ spec:
       containers:
         - name: grafana
           image: grafana/grafana
-          volumeMounts:
-            - mountPath: /etc/grafana/
-              name: config
-      volumes:
-        - name: config
-          configMap:
-            name: grafana-config
 
 ---
 apiVersion: v1
