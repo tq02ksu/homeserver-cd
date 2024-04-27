@@ -29,7 +29,7 @@ metadata:
   name: grafana-config
   namespace: inf
 data:
-  datasources/prometheus.yaml: |
+  prometheus.yaml: |
     # config file version
     apiVersion: 1
     
