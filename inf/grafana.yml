@@ -87,8 +87,6 @@ data:
         # <bool> allow users to edit datasources from the UI.
         editable: false
 
-  dashboards/node-exporter.yml: |
-
 ---
 apiVersion: v1
 kind: Service
