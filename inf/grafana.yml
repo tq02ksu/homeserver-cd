@@ -1,3 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: inf
+data:
+  datasources.yml: |
+    apiVersion: 1
+    deleteDatasources:
+    - name: Prometheus
+      orgId: 1
+    
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        ordId: 1
+        url: http://prometheus:9100
+        isDefault: true
+        editable: false
+        jsonData:
+          tlsAuth: false
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,6 +38,13 @@ spec:
       containers:
         - name: grafana
           image: grafana/grafana
+          volumeMounts:
+            - mountPath: /etc/grafana/
+              name: config
+      volumes:
+        - name: config
+          configMap:
+            name: grafana-config
 
 ---
 apiVersion: v1
@@ -46,3 +76,4 @@ spec:
                 name: grafana
                 port:
                   number: 3000
+            pathType: Prefix
