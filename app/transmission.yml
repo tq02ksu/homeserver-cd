@@ -18,6 +18,7 @@ spec:
       initContainers:
         - name: settings
           image: busybox
+          imagePullPolicy: IfNotPresent
           command:
             - sh
             - -c
@@ -112,6 +113,7 @@ spec:
       containers:
         - name: transmission
           image: linuxserver/transmission
+          imagePullPolicy: IfNotPresent
           env:
             - name: TZ
               value: Asia/Shanghai
