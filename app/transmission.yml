@@ -112,7 +112,7 @@ spec:
               name: transmission-config
       containers:
         - name: transmission
-          image: linuxserver/transmission
+          image: linuxserver/transmission:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: TZ
