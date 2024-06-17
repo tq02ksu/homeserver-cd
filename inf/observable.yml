@@ -208,7 +208,7 @@ spec:
               mountPath: /data
       containers:
         - name: prometheus
-          image: prom/prometheus:v2.48.0
+          image: docker.io/prom/prometheus:v2.48.0
           env:
             - name: TZ
               value: Asia/Shanghai
