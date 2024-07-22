@@ -14,7 +14,7 @@ data:
       - name: Prometheus
         type: prometheus
         ordId: 1
-        url: http://prometheus:9100
+        url: http://prometheus:9090
         isDefault: true
         editable: false
         jsonData:
